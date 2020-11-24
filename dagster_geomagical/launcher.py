@@ -80,7 +80,7 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
             )
         )
 
-        sig =  app.signature('launch_run', queue=repository_name, args=(input_json,))
+        sig =  app.signature('launch_run', queue=str(repository_name), args=(input_json,))
         result = sig.delay()
         instance.report_engine_event(
             "Started Celery task for pipeline (task id: {result.id}).".format(result=result),
