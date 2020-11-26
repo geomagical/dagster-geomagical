@@ -64,6 +64,7 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
                 )
 
             repository_name = external_pipeline.repository_handle.repository_name
+            location_name = external_pipeline.repository_handle.repository_location_handle.location_name
             pipeline_origin = PipelinePythonOrigin(
                 pipeline_name=external_pipeline.name,
                 repository_origin=repository_location_handle.get_repository_python_origin(
@@ -71,7 +72,7 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
                 ),
             )
         else:
-            repository_name = 'local'
+            location_name = 'local'
             pipeline_origin = external_pipeline.get_origin()
 
         input_json = serialize_dagster_namedtuple(
@@ -80,7 +81,7 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
             )
         )
 
-        sig =  app.signature('launch_run', queue=str(repository_name), args=(input_json,))
+        sig =  app.signature('launch_run', queue=location_name, args=(input_json,))
         result = sig.delay()
         instance.report_engine_event(
             "Started Celery task for pipeline (task id: {result.id}).".format(result=result),
