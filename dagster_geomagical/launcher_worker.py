@@ -1,5 +1,6 @@
 import os
 import sys
+import contextlib
 
 from celery import Celery
 from celery.result import allow_join_result
@@ -20,24 +21,38 @@ from dagster.serdes import (
 app = Celery('tasks', broker=os.environ['CELERY_BROKER'], backend=os.environ['CELERY_BACKEND'])
 app.conf.task_acks_late = True
 
+@contextlib.contextmanager
+def mask_env(keys):
+    """Context manager to hide some environment variables temporarily."""
+    old_env = {}
+    for key in keys:
+        old = os.environ.pop(key)
+        if old is not None:
+            old_env[key] = old
+    try:
+        yield
+    finally:
+        os.environ.update(old_env)
+
 
 @app.task(name='launch_run', bind=True)
 def launch_run(self, input_json):
     args = check.inst(deserialize_json_to_dagster_namedtuple(input_json), ExecuteRunArgs)
     recon_pipeline = recon_pipeline_from_origin(args.pipeline_origin)
 
-    with (
-        DagsterInstance.from_ref(args.instance_ref) if args.instance_ref else DagsterInstance.get()
-    ) as instance:
-        buffer = []
+    with mask_env(['CELERY_BROKER_URL', 'CELERY_BROKER_READ_URL', 'CELERY_BROKER_WRITE_URL', 'CELERY_RESULT_BACKEND']):
+        with (
+            DagsterInstance.from_ref(args.instance_ref) if args.instance_ref else DagsterInstance.get()
+        ) as instance:
+            buffer = []
 
-        def send_to_buffer(event):
-            buffer.append(serialize_dagster_namedtuple(event))
+            def send_to_buffer(event):
+                buffer.append(serialize_dagster_namedtuple(event))
 
-        _execute_run_command_body(self.request.id, recon_pipeline, args.pipeline_run_id, instance, send_to_buffer)
+            _execute_run_command_body(self.request.id, recon_pipeline, args.pipeline_run_id, instance, send_to_buffer)
 
-        for line in buffer:
-            print(line)
+            for line in buffer:
+                print(line)
 
 
 def _execute_run_command_body(task_id, recon_pipeline, pipeline_run_id, instance, write_stream_fn):
