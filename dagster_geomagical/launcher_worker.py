@@ -26,7 +26,7 @@ def mask_env(keys):
     """Context manager to hide some environment variables temporarily."""
     old_env = {}
     for key in keys:
-        old = os.environ.pop(key)
+        old = os.environ.pop(key, default=None)
         if old is not None:
             old_env[key] = old
     try:
