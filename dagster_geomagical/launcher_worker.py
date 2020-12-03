@@ -19,7 +19,8 @@ from dagster.serdes import (
 )
 
 app = Celery('tasks', broker=os.environ['CELERY_BROKER'], backend=os.environ['CELERY_BACKEND'])
-app.conf.task_acks_late = True
+# Disable acks_late for now because restarting a pipeline run won't work anyway. Upstream work pending.
+# app.conf.task_acks_late = True
 
 @contextlib.contextmanager
 def mask_env(keys):
