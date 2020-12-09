@@ -2,6 +2,15 @@ import os
 import sys
 import contextlib
 
+# Monkey patch dagster.utils.alter_sys_path into a no-op context manager.
+# It's mutating a global so it can cause conflicts with running this via threads, and we don't need it.
+# This should happen before importing any other Dagster code.
+@contextlib.contextmanager
+def fake_alter_sys_path(*args, **kwargs):
+    yield
+import dagster.utils
+dagster.utils.alter_sys_path = fake_alter_sys_path
+
 from celery import Celery
 from celery.result import allow_join_result
 from dagster import check
