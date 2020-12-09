@@ -21,6 +21,8 @@ from dagster.serdes import (
 app = Celery('tasks', broker=os.environ['CELERY_BROKER'], backend=os.environ['CELERY_BACKEND'])
 # Disable acks_late for now because restarting a pipeline run won't work anyway. Upstream work pending.
 # app.conf.task_acks_late = True
+# No prefetching so autoscaling works better.
+app.conf.worker_prefetch_multiplier = 1
 
 @contextlib.contextmanager
 def mask_env(keys):
