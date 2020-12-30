@@ -14,6 +14,7 @@ dagster.utils.alter_sys_path = fake_alter_sys_path
 from celery import Celery
 from celery.result import allow_join_result
 from dagster import check
+from dagster.check import CheckError
 from dagster.cli.api import ExecuteRunArgs
 from dagster.core.errors import DagsterSubprocessError
 from dagster.core.events import EngineEventData
@@ -28,8 +29,7 @@ from dagster.serdes import (
 )
 
 app = Celery('tasks', broker=os.environ['CELERY_BROKER'], backend=os.environ['CELERY_BACKEND'])
-# Disable acks_late for now because restarting a pipeline run won't work anyway. Upstream work pending.
-# app.conf.task_acks_late = True
+app.conf.task_acks_late = True
 # No prefetching so autoscaling works better.
 app.conf.worker_prefetch_multiplier = 1
 # For results.
@@ -85,7 +85,10 @@ def _execute_run_command_body(task_id, recon_pipeline, pipeline_run_id, instance
                 pipeline_run,
                 EngineEventData.engine_error(serializable_error_info_from_exc_info(sys.exc_info())),
             )
-    except Exception:  # pylint: disable=broad-except
+    except Exception as exc:  # pylint: disable=broad-except
+        if isinstance(exc, CheckError) and 'in state PipelineRunStatus.STARTED, expected PipelineRunStatus.NOT_STARTED' in str(exc):
+            # TODO Should this log?
+            return
         instance.report_engine_event(
             "An exception was thrown during execution that is likely a framework error, "
             "rather than an error in user code.",
