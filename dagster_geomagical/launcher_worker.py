@@ -32,6 +32,9 @@ app = Celery('tasks', broker=os.environ['CELERY_BROKER'], backend=os.environ['CE
 # app.conf.task_acks_late = True
 # No prefetching so autoscaling works better.
 app.conf.worker_prefetch_multiplier = 1
+# For results.
+app.conf.redis_retry_on_timeout = True
+app.conf.redis_socket_keepalive = True
 
 @app.task(name='launch_run', bind=True)
 def launch_run(self, input_json):
