@@ -67,6 +67,10 @@ def _execute_run_command_body(task_id, recon_pipeline, pipeline_run_id, instance
 
     pipeline_run = instance.get_run_by_id(pipeline_run_id)
 
+   instance.report_engine_event(
+        message=f"Pipeline execution starting (task: {task_id})", pipeline_run=pipeline_run,
+    )
+
     try:
         with allow_join_result():
             for event in execute_run_iterator(recon_pipeline, pipeline_run, instance):
