@@ -14,19 +14,6 @@ from dagster.core.origin import PipelineGrpcServerOrigin, PipelinePythonOrigin
 from dagster.serdes import ConfigurableClass, serialize_dagster_namedtuple, whitelist_for_serdes
 # from dagster.utils.hosted_user_process import recon_pipeline_from_origin
 
-app = Celery('tasks', broker=os.environ['CELERY_BROKER'], backend=os.environ['CELERY_BACKEND'])
-app.conf.task_acks_late = True
-
-# @whitelist_for_serdes
-# class MyExecuteRunArgs(namedtuple("_MyExecuteRunArgs", "pipeline pipeline_run_id instance_ref")):
-#     def __new__(cls, pipeline, pipeline_run_id, instance_ref):
-#         return super(MyExecuteRunArgs, cls).__new__(
-#             cls,
-#             pipeline=check.inst_param(pipeline_origin, "pipeline", Pipeline),
-#             pipeline_run_id=check.str_param(pipeline_run_id, "pipeline_run_id"),
-#             instance_ref=check.opt_inst_param(instance_ref, "instance_ref", InstanceRef),
-#         )
-
 
 class CeleryRunLauncher(RunLauncher, ConfigurableClass):
     """This run launcher launches runs synchronously, in memory, and is intended only for test.
@@ -36,6 +23,7 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
 
     def __init__(self, inst_data=None):
         self._inst_data = inst_data
+        self._apps = {}
 
     @property
     def inst_data(self):
@@ -48,6 +36,19 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
     @staticmethod
     def from_config_value(inst_data, config_value):
         return CeleryRunLauncher(inst_data=inst_data)
+
+    def _get_app(self, name):
+        """Lazy initialize and cache Celery apps for each location."""
+        app = self._apps.get(name)
+        if app is None:
+            # Reparse the broker URL for the different vhost.
+            parts = urllib.parse.urlparse(os.environ['CELERY_BROKER'])
+            parts.path = f"{name}-pipelines"
+            broker_url = urllib.parse.urlunparse(parts)
+            # Build the app and make it persistent for connection pooling.
+            app = Celery(set_as_current=False, broker=broker_url, backend=os.environ['CELERY_BACKEND'])
+            self._apps[name] = app
+        return app
 
     def launch_run(self, instance, run, external_pipeline):
         if isinstance(external_pipeline.get_origin(), PipelineGrpcServerOrigin):
@@ -81,7 +82,8 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
             )
         )
 
-        sig =  app.signature('launch_run', queue=location_name, args=(input_json,))
+        app = self._get_app(location_name)
+        sig =  app.signature('launch_run', args=(input_json,))
         result = sig.delay()
         instance.report_engine_event(
             "Started Celery task for pipeline (task id: {result.id}).".format(result=result),

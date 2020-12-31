@@ -30,6 +30,7 @@ from dagster.serdes import (
 
 app = Celery('tasks', broker=os.environ['CELERY_BROKER'], backend=os.environ['CELERY_BACKEND'])
 app.conf.task_acks_late = True
+app.conf.broker_pool_limit = 30
 # No prefetching so autoscaling works better.
 app.conf.worker_prefetch_multiplier = 1
 # For results.
