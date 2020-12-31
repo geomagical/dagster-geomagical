@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 from collections import namedtuple
 
 from celery import Celery
