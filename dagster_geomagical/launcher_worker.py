@@ -68,7 +68,7 @@ def _execute_run_command_body(task_id, recon_pipeline, pipeline_run_id, instance
 
     pipeline_run = instance.get_run_by_id(pipeline_run_id)
 
-   instance.report_engine_event(
+    instance.report_engine_event(
         message=f"Pipeline execution starting (task: {task_id})", pipeline_run=pipeline_run,
     )
 
