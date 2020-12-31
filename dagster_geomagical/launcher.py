@@ -51,9 +51,9 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
             broker_url = urllib.parse.urlunsplit(parts)
             # Build the app and make it persistent for connection pooling.
             app = Celery(set_as_current=False, broker=broker_url, backend=os.environ['CELERY_BACKEND'])
-            app.conf.task_queues = [
-                kombu.Queue('celery', exchange=kombu.Exchange(passive=True), routing_key='celery'),
-            ]
+            # app.conf.task_queues = [
+            #     kombu.Queue('celery', exchange=kombu.Exchange(passive=True), routing_key='celery'),
+            # ]
             self._apps[name] = app
         return app
 
