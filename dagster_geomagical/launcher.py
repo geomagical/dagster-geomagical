@@ -8,9 +8,13 @@ from dagster.core.events import EngineEventData, EventMetadataEntry
 # from dagster.core.execution.api import execute_run
 # from dagster.core.host_representation import ExternalPipeline
 # from dagster.core.instance import DagsterInstance
-from dagster.core.host_representation.handle import GrpcServerRepositoryLocationHandle
+from dagster.core.host_representation import (
+    ExternalPipeline,
+    GrpcServerRepositoryLocationHandle,
+    GrpcServerRepositoryLocationOrigin,
+)
 from dagster.core.launcher import RunLauncher
-from dagster.core.origin import PipelineGrpcServerOrigin, PipelinePythonOrigin
+from dagster.core.origin import PipelinePythonOrigin
 from dagster.serdes import ConfigurableClass, serialize_dagster_namedtuple, whitelist_for_serdes
 # from dagster.utils.hosted_user_process import recon_pipeline_from_origin
 
@@ -49,7 +53,10 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
         return app
 
     def launch_run(self, instance, run, external_pipeline):
-        if isinstance(external_pipeline.get_origin(), PipelineGrpcServerOrigin):
+        if isinstance(
+            external_pipeline.get_external_origin().external_repository_origin.repository_location_origin,
+            GrpcServerRepositoryLocationOrigin,
+        ):
             repository_location_handle = (
                 external_pipeline.repository_handle.repository_location_handle
             )
@@ -72,7 +79,7 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
             )
         else:
             location_name = 'local'
-            pipeline_origin = external_pipeline.get_origin()
+            pipeline_origin = external_pipeline.get_python_origin()
 
         input_json = serialize_dagster_namedtuple(
             ExecuteRunArgs(
