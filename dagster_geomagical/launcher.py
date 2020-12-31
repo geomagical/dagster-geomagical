@@ -16,9 +16,7 @@ from dagster.serdes import ConfigurableClass, serialize_dagster_namedtuple, whit
 
 
 class CeleryRunLauncher(RunLauncher, ConfigurableClass):
-    """This run launcher launches runs synchronously, in memory, and is intended only for test.
-
-    Use the :py:class:`dagster.DefaultRunLauncher`.
+    """This run launcher launches runs using a Celery worker to host the launched run itself.
     """
 
     def __init__(self, inst_data=None):
