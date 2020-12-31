@@ -44,9 +44,9 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
         app = self._apps.get(name)
         if app is None:
             # Reparse the broker URL for the different vhost.
-            parts = urllib.parse.urlparse(os.environ['CELERY_BROKER'])
-            parts.path = f"{name}-pipelines"
-            broker_url = urllib.parse.urlunparse(parts)
+            parts = list(urllib.parse.urlsplit(os.environ['CELERY_BROKER']))
+            parts[2] = f"{name}-pipelines"
+            broker_url = urllib.parse.urlunsplit(parts)
             # Build the app and make it persistent for connection pooling.
             app = Celery(set_as_current=False, broker=broker_url, backend=os.environ['CELERY_BACKEND'])
             self._apps[name] = app
