@@ -94,7 +94,7 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
         )
 
         app = self._get_app(location_name)
-        sig =  app.signature('launch_run', args=(input_json,), routing_key=f"{location_name}-pipelines")
+        sig =  app.signature('launch_run', args=(input_json,), queue=f"{location_name}-pipelines")
         result = sig.delay()
         instance.report_engine_event(
             "Started Celery task for pipeline (task id: {result.id}).".format(result=result),
