@@ -29,7 +29,14 @@ from dagster.serdes import (
 )
 
 app = Celery('tasks', broker=os.environ['CELERY_BROKER'], backend=os.environ['CELERY_BACKEND'])
+# Disable all the extraneos RabbitMQ stuff.
+app.conf.worker_enable_remote_control = False
+app.conf.task_queues = [
+    kombu.Queue(os.environ['CELERY_QUEUE'], no_declare=True),
+]
+# Leave things in the queue for autoscaling counts.
 app.conf.task_acks_late = True
+# Increase the default connection pool size because we'll be blocked those probably a lot?
 app.conf.broker_pool_limit = 30
 # No prefetching so autoscaling works better.
 app.conf.worker_prefetch_multiplier = 1
