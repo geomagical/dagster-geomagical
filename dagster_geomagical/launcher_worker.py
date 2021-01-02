@@ -11,6 +11,7 @@ def fake_alter_sys_path(*args, **kwargs):
 import dagster.utils
 dagster.utils.alter_sys_path = fake_alter_sys_path
 
+import kombu
 from celery import Celery
 from celery.result import allow_join_result
 from dagster import check
