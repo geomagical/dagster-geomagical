@@ -51,9 +51,10 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
             broker_url = urllib.parse.urlunsplit(parts)
             # Build the app and make it persistent for connection pooling.
             app = Celery(set_as_current=False, broker=broker_url, backend=os.environ['CELERY_BACKEND'])
-            # app.conf.task_queues = [
-            #     kombu.Queue('celery', exchange=kombu.Exchange(passive=True), routing_key='celery'),
-            # ]
+            app.conf.worker_enable_remote_control = False
+            app.conf.task_queues = [
+                kombu.Queue(name, no_declare=True),
+            ]
             self._apps[name] = app
         return app
 
@@ -93,7 +94,7 @@ class CeleryRunLauncher(RunLauncher, ConfigurableClass):
         )
 
         app = self._get_app(location_name)
-        sig =  app.signature('launch_run', args=(input_json,), routing_key=location_name)
+        sig =  app.signature('launch_run', args=(input_json,), queue=location_name)
         result = sig.delay()
         instance.report_engine_event(
             "Started Celery task for pipeline (task id: {result.id}).".format(result=result),
