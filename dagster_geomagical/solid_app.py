@@ -36,7 +36,7 @@ class SolidCelery(Celery):
             @functools.wraps(fn)
             def wrapper(self, run_id, *args, **kwargs):
                 frame = inspect.currentframe()
-                arg_string = inspect.formatargvalues(*frame)
+                arg_string = inspect.formatargvalues(*inspect.getargvalues(frame))
                 del frame # Frame objects suck to leave live references to, kill it quickly.
                 print(f"Got task {self.request.id} via {run_id}: {fn.__name__}{arg_string}")
                 ret = fn(self, run_id, *args, **kwargs)
