@@ -26,7 +26,7 @@ class SolidCelery(Celery):
         self.conf.redis_retry_on_timeout = True
         self.conf.redis_socket_keepalive = True
 
-    def task(fn=None, **kwargs):
+    def task(self, fn=None, **kwargs):
         if fn is not None:
             return self.task()(fn)
         def decorator(fn):
