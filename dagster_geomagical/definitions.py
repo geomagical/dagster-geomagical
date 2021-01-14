@@ -1,43 +1,50 @@
 import functools
+import os
 
-from dagster import solid, pipeline, resource, ModeDefinition
+import kombu
+from celery import Celery
+from dagster import solid
 
-from .make_app import make_app
 
 def celery_solid(**options):
-    # Set some defaults.
-    options.setdefault('required_resource_keys', set()).add('celery_app')
     # Pull out some non-Dagster options.
     queue = options.pop('queue', None)
+    timeout = options.pop('timeout', None)
+    task_name = options.pop('task_name', None)
+    # If we're in the GRPC daemon, don't initialize the app at all.
+    if 'CELERY_BROKER' in os.environ:
+        # Build the app and make it persistent for connection pooling.
+        app = Celery(set_as_current=False, broker=os.environ['CELERY_BROKER'], backend=os.environ['CELERY_BACKEND'])
+        app.conf.worker_enable_remote_control = False
+        app.conf.task_queues = [
+            kombu.Queue(queue, no_declare=True),
+        ]
+        app.conf.redis_retry_on_timeout = True
+        app.conf.redis_socket_keepalive = True
+    else:
+        app = None
 
     def decorator(fn):
         @solid(**options)
         @functools.wraps(fn)
         def wrapper(context, *args, **kwargs):
-            celery_args = fn(context, *args, **kwargs)
+            gen = fn(context, *args, **kwargs)
+            celery_args = next(gen)
             if isinstance(celery_args, dict):
+                celery_args.setdefault('run_id', context.run_id)
                 args_options = {'kwargs': celery_args}
             else:
                 args_options = {'args': celery_args}
-            app = context.resources.celery_app
-            sig = app.signature(f'tasks.{context.solid.name}', queue=queue, **args_options)
+
+            sig =  app.signature(f'tasks.{task_name or context.solid.name}', queue=queue, exchange='', routing_key=queue, **args_options)
+            context.log.info(f"Running task {sig}")
             result = sig.delay()
+            context.log.info(f"Started task {result.id}")
             # disable_sync_subtasks=False because it's for a totally different Celery setup so the usual deadlock arguments don't apply.
-            ret = result.get(disable_sync_subtasks=False)
-            return ret
+            ret = result.get(timeout=timeout, disable_sync_subtasks=False)
+            context.log.info("Got result"+repr(ret))
+
+            yield gen.send(ret)
+            yield from gen
         return wrapper
     return decorator
-
-
-@resource
-def celery_app(_):
-    return make_app()
-
-
-def celery_pipeline(**options):
-    mode_defs = options.setdefault('mode_defs', [])
-    if not mode_defs:
-        mode_defs.append(ModeDefinition())
-    for mode_def in mode_defs:
-        mode_def.resource_defs['celery_app'] = celery_app
-    return pipeline(**options)
