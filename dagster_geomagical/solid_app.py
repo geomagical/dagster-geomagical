@@ -2,6 +2,7 @@ import functools
 import inspect
 import os
 
+import kombu
 from celery import Celery
 
 
