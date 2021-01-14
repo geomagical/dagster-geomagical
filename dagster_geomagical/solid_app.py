@@ -29,8 +29,10 @@ class SolidCelery(Celery):
     def task(self, fn=None, **kwargs):
         if fn is not None:
             return self.task()(fn)
+        kwargs['bind'] = True
+        super_task = super().task(**kwargs)
         def decorator(fn):
-            kwargs['bind'] = True
+            @super_task
             @functools.wraps(fn)
             def wrapper(self, run_id, *args, **kwargs):
                 frame = inspect.currentframe()
@@ -40,5 +42,5 @@ class SolidCelery(Celery):
                 ret = fn(self, run_id, *args, **kwargs)
                 print(f"Finished task {self.request.id} via {run_id}: {repr(ret)}")
                 return ret
-            return super().task(**kargs)(wrapper)
+            return wrapper
         return decorator
