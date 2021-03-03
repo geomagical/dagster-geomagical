@@ -36,7 +36,7 @@ def celery_solid(**options):
             else:
                 args_options = {'args': celery_args}
 
-            sig =  app.signature(f'tasks.{task_name or context.solid.name}', queue=queue, exchange='', routing_key=queue, **args_options)
+            sig =  app.signature(f'tasks.{task_name or fn.__name__}', queue=queue, exchange='', routing_key=queue, **args_options)
             context.log.info(f"Running task {sig}")
             result = sig.delay()
             context.log.info(f"Started task {result.id}")
