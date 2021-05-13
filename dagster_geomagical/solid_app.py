@@ -8,10 +8,11 @@ from celery import Celery
 
 class SolidCelery(Celery):
     """Helper subclass for Dagster solid workers to set up a Celery app."""
+
     def __init__(self, name, **kwargs):
-        kwargs.setdefault('main', 'tasks')
-        kwargs.setdefault('broker', os.environ['CELERY_BROKER'])
-        kwargs.setdefault('backend', os.environ['CELERY_BACKEND'])
+        kwargs.setdefault("main", "tasks")
+        kwargs.setdefault("broker", os.environ["CELERY_BROKER"])
+        kwargs.setdefault("backend", os.environ["CELERY_BACKEND"])
         super().__init__(**kwargs)
         # Disable all the extraneos RabbitMQ stuff.
         self.conf.worker_enable_remote_control = False
@@ -25,22 +26,30 @@ class SolidCelery(Celery):
         # For results.
         self.conf.redis_retry_on_timeout = True
         self.conf.redis_socket_keepalive = True
+        # AMQP Heartbeats.
+        self.conf.broker_heartbeat = 60
+        self.conf.broker_heartbeat_checkrate = 30
 
     def task(self, fn=None, **kwargs):
         if fn is not None:
             return self.task()(fn)
-        kwargs['bind'] = True
+        kwargs["bind"] = True
         super_task = super().task(**kwargs)
+
         def decorator(fn):
             @super_task
             @functools.wraps(fn)
             def wrapper(self, run_id, *args, **kwargs):
                 frame = inspect.currentframe()
                 arg_string = inspect.formatargvalues(*inspect.getargvalues(frame))
-                del frame # Frame objects suck to leave live references to, kill it quickly.
-                print(f"Got task {self.request.id} via {run_id}: {fn.__name__}{arg_string}")
+                del frame  # Frame objects suck to leave live references to, kill it quickly.
+                print(
+                    f"Got task {self.request.id} via {run_id}: {fn.__name__}{arg_string}"
+                )
                 ret = fn(self, run_id, *args, **kwargs)
                 print(f"Finished task {self.request.id} via {run_id}: {repr(ret)}")
                 return ret
+
             return wrapper
+
         return decorator
