@@ -27,8 +27,8 @@ class SolidCelery(Celery):
         self.conf.redis_retry_on_timeout = True
         self.conf.redis_socket_keepalive = True
         # AMQP Heartbeats.
-        self.conf.broker_heartbeat = 60
-        self.conf.broker_heartbeat_checkrate = 30
+        self.conf.broker_heartbeat = 60.0
+        self.conf.broker_heartbeat_checkrate = 4.0
 
     def task(self, fn=None, **kwargs):
         if fn is not None:
