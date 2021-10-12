@@ -33,8 +33,13 @@ def celery_solid(**options):
             if isinstance(celery_args, dict):
                 celery_args.setdefault('run_id', context.run_id)
                 args_options = {'kwargs': celery_args}
-            else:
+            elif isinstance(celery_args, list):
                 args_options = {'args': celery_args}
+            else:
+                # It's probably some kind of early return, so just repeat it and we're done.
+                yield celery_args
+                yield from gen
+                return
 
             sig =  app.signature(f'tasks.{task_name or fn.__name__}', queue=queue, exchange='', routing_key=queue, **args_options)
             context.log.info(f"Running task {sig}")
